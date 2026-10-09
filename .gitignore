@@ -1,0 +1,8 @@
+/build/
+/build-*/
+/.cache/
+*.user
+*.user.*
+*.rim
+*.AppImage
+AppDir/

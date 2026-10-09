@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Rimution
+Comment=2D motion graphics editor prototype
+Exec=rimution
+Icon=rimution
+Terminal=false
+Categories=Graphics;AudioVideo;Video;
+StartupNotify=true
