@@ -23,8 +23,8 @@ ApplicationWindow {
     property bool playing: false
     property string statusText: "Ready"
     property var keyframes: [
-        { "frame": 0, "x": 100, "y": 175, "scale": 100, "opacity": 100 },
-        { "frame": 120, "x": 590, "y": 205, "scale": 135, "opacity": 100 }
+        { "frame": 0, "x": 100, "y": 175, "scale": 100, "rotation": 0, "opacity": 100 },
+        { "frame": 120, "x": 590, "y": 205, "scale": 135, "rotation": 0, "opacity": 100 }
     ]
 
     readonly property color panel: "#191B21"
@@ -40,25 +40,25 @@ ApplicationWindow {
             "file": "Berkas", "new": "Proyek Baru", "open": "Buka", "save": "Simpan",
             "project": "PROYEK", "assets": "ASET", "composition": "Komposisi",
             "properties": "Properti", "transform": "Transformasi", "positionX": "Posisi X",
-            "positionY": "Posisi Y", "scale": "Skala", "opacity": "Opasitas",
+            "positionY": "Posisi Y", "scale": "Skala", "rotation": "Rotasi", "opacity": "Opasitas",
             "timeline": "Timeline", "addKeyframe": "Tambah Keyframe", "play": "Putar",
             "pause": "Jeda", "frame": "Frame", "layer": "Shape 01", "background": "Latar",
             "ready": "Siap", "saved": "Proyek berhasil disimpan", "loaded": "Proyek berhasil dibuka",
             "newCreated": "Proyek baru dibuat", "keyframeAdded": "Keyframe ditambahkan",
             "language": "Bahasa", "canvasHint": "Pratinjau Komposisi", "motion": "Motion Studio",
-            "noFile": "Belum ada berkas proyek"
+            "noFile": "Belum ada berkas proyek", "dragObject": "Seret objek untuk memindahkan"
         }
         const en = {
             "file": "File", "new": "New Project", "open": "Open", "save": "Save",
             "project": "PROJECT", "assets": "ASSETS", "composition": "Composition",
             "properties": "Properties", "transform": "Transform", "positionX": "Position X",
-            "positionY": "Position Y", "scale": "Scale", "opacity": "Opacity",
+            "positionY": "Position Y", "scale": "Scale", "rotation": "Rotation", "opacity": "Opacity",
             "timeline": "Timeline", "addKeyframe": "Add Keyframe", "play": "Play",
             "pause": "Pause", "frame": "Frame", "layer": "Shape 01", "background": "Background",
             "ready": "Ready", "saved": "Project saved successfully", "loaded": "Project loaded successfully",
             "newCreated": "New project created", "keyframeAdded": "Keyframe added",
             "language": "Language", "canvasHint": "Composition Preview", "motion": "Motion Studio",
-            "noFile": "No project file yet"
+            "noFile": "No project file yet", "dragObject": "Drag the object to move it"
         }
         return (currentLanguage === "id" ? stringsId : en)[key] || key
     }
@@ -95,6 +95,7 @@ ApplicationWindow {
                 nextFrames[i].x = Math.round(valueAt("x", currentFrame))
                 nextFrames[i].y = Math.round(valueAt("y", currentFrame))
                 nextFrames[i].scale = Math.round(valueAt("scale", currentFrame))
+                nextFrames[i].rotation = Math.round(valueAt("rotation", currentFrame))
                 nextFrames[i].opacity = Math.round(valueAt("opacity", currentFrame))
                 found = true
                 break
@@ -106,6 +107,7 @@ ApplicationWindow {
                 "x": Math.round(valueAt("x", currentFrame)),
                 "y": Math.round(valueAt("y", currentFrame)),
                 "scale": Math.round(valueAt("scale", currentFrame)),
+                "rotation": Math.round(valueAt("rotation", currentFrame)),
                 "opacity": Math.round(valueAt("opacity", currentFrame))
             })
         }
@@ -129,6 +131,7 @@ ApplicationWindow {
                 "x": Math.round(valueAt("x", currentFrame)),
                 "y": Math.round(valueAt("y", currentFrame)),
                 "scale": Math.round(valueAt("scale", currentFrame)),
+                "rotation": Math.round(valueAt("rotation", currentFrame)),
                 "opacity": Math.round(valueAt("opacity", currentFrame))
             }
             newFrame[propertyName] = Math.round(value)
@@ -145,8 +148,8 @@ ApplicationWindow {
         totalFrames = 120
         fps = 24
         keyframes = [
-            { "frame": 0, "x": 100, "y": 175, "scale": 100, "opacity": 100 },
-            { "frame": 120, "x": 590, "y": 205, "scale": 135, "opacity": 100 }
+            { "frame": 0, "x": 100, "y": 175, "scale": 100, "rotation": 0, "opacity": 100 },
+            { "frame": 120, "x": 590, "y": 205, "scale": 135, "rotation": 0, "opacity": 100 }
         ]
         statusText = t("newCreated")
     }
@@ -182,7 +185,9 @@ ApplicationWindow {
         fps = Math.max(1, Number(loaded.fps || 24))
         if (loaded.language === "id" || loaded.language === "en")
             currentLanguage = loaded.language
-        keyframes = loaded.keyframes
+        keyframes = loaded.keyframes.map(function(frameData) {
+            return Object.assign({ "rotation": 0 }, frameData)
+        })
         currentFile = url.toLocalFile()
         statusText = t("loaded")
     }
@@ -475,6 +480,7 @@ ApplicationWindow {
                                     height: 160 * root.valueAt("scale", root.currentFrame) / 100
                                     x: root.valueAt("x", root.currentFrame)
                                     y: root.valueAt("y", root.currentFrame)
+                                    rotation: root.valueAt("rotation", root.currentFrame)
                                     radius: 24
                                     color: root.accent
                                     opacity: Math.max(0, Math.min(1, root.valueAt("opacity", root.currentFrame) / 100))
@@ -510,12 +516,53 @@ ApplicationWindow {
                                     font.pixelSize: 9
                                     font.letterSpacing: 1.2
                                 }
+
+                                MouseArea {
+                                    id: canvasMouseArea
+                                    anchors.fill: parent
+                                    z: 100
+                                    acceptedButtons: Qt.LeftButton
+                                    preventStealing: true
+                                    property bool draggingObject: false
+                                    property real dragOffsetX: 0
+                                    property real dragOffsetY: 0
+                                    cursorShape: draggingObject ? Qt.ClosedHandCursor : Qt.ArrowCursor
+
+                                    onPressed: function(mouse) {
+                                        const objectX = root.valueAt("x", root.currentFrame)
+                                        const objectY = root.valueAt("y", root.currentFrame)
+                                        const objectSize = 160 * root.valueAt("scale", root.currentFrame) / 100
+                                        if (mouse.x >= objectX && mouse.x <= objectX + objectSize &&
+                                            mouse.y >= objectY && mouse.y <= objectY + objectSize) {
+                                            draggingObject = true
+                                            dragOffsetX = mouse.x - objectX
+                                            dragOffsetY = mouse.y - objectY
+                                            mouse.accepted = true
+                                        } else {
+                                            draggingObject = false
+                                            mouse.accepted = false
+                                        }
+                                    }
+
+                                    onPositionChanged: function(mouse) {
+                                        if (!draggingObject)
+                                            return
+                                        const objectSize = 160 * root.valueAt("scale", root.currentFrame) / 100
+                                        const nextX = Math.max(0, Math.min(stage.width - objectSize, mouse.x - dragOffsetX))
+                                        const nextY = Math.max(0, Math.min(stage.height - objectSize, mouse.y - dragOffsetY))
+                                        root.setCurrentProperty("x", nextX)
+                                        root.setCurrentProperty("y", nextY)
+                                    }
+
+                                    onReleased: draggingObject = false
+                                    onCanceled: draggingObject = false
+                                }
                             }
                         }
 
                         RowLayout {
                             Layout.fillWidth: true
-                            Label { text: root.t("canvasHint"); color: root.mutedText; font.pixelSize: 10 }
+                            Label { text: root.t("canvasHint") + " · " + root.t("dragObject"); color: root.mutedText; font.pixelSize: 10 }
                             Item { Layout.fillWidth: true }
                             Label { text: root.t("frame") + " " + root.currentFrame + " / " + root.totalFrames; color: root.mutedText; font.pixelSize: 10; font.family: "monospace" }
                         }
@@ -614,6 +661,14 @@ ApplicationWindow {
                                         anchors.verticalCenter: parent.verticalCenter
                                         border.color: "#E9FFC2"
                                         border.width: 1
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: {
+                                                root.currentFrame = Number(modelData.frame)
+                                                root.statusText = root.t("frame") + " " + root.currentFrame
+                                            }
+                                        }
                                     }
                                 }
 
@@ -666,9 +721,16 @@ ApplicationWindow {
                             Layout.fillWidth: true
                             Label { text: root.t("positionX"); color: root.brightText; font.pixelSize: 11 }
                             Item { Layout.fillWidth: true }
-                            Label { text: Math.round(root.valueAt("x", root.currentFrame)); color: root.accent; font.pixelSize: 11; font.family: "monospace" }
+                            SpinBox {
+                                Layout.preferredWidth: 96
+                                from: 0
+                                to: 800
+                                editable: true
+                                value: Math.round(root.valueAt("x", root.currentFrame))
+                                onValueModified: root.setCurrentProperty("x", value)
+                            }
                         }
-                        Slider { Layout.fillWidth: true; from: 0; to: 640; value: root.valueAt("x", root.currentFrame); onMoved: root.setCurrentProperty("x", value) }
+                        Slider { Layout.fillWidth: true; from: 0; to: 800; value: root.valueAt("x", root.currentFrame); onMoved: root.setCurrentProperty("x", value) }
                     }
 
                     ColumnLayout {
@@ -678,9 +740,16 @@ ApplicationWindow {
                             Layout.fillWidth: true
                             Label { text: root.t("positionY"); color: root.brightText; font.pixelSize: 11 }
                             Item { Layout.fillWidth: true }
-                            Label { text: Math.round(root.valueAt("y", root.currentFrame)); color: root.accent; font.pixelSize: 11; font.family: "monospace" }
+                            SpinBox {
+                                Layout.preferredWidth: 96
+                                from: 0
+                                to: 450
+                                editable: true
+                                value: Math.round(root.valueAt("y", root.currentFrame))
+                                onValueModified: root.setCurrentProperty("y", value)
+                            }
                         }
-                        Slider { Layout.fillWidth: true; from: 0; to: 300; value: root.valueAt("y", root.currentFrame); onMoved: root.setCurrentProperty("y", value) }
+                        Slider { Layout.fillWidth: true; from: 0; to: 450; value: root.valueAt("y", root.currentFrame); onMoved: root.setCurrentProperty("y", value) }
                     }
 
                     ColumnLayout {
@@ -690,9 +759,39 @@ ApplicationWindow {
                             Layout.fillWidth: true
                             Label { text: root.t("scale"); color: root.brightText; font.pixelSize: 11 }
                             Item { Layout.fillWidth: true }
-                            Label { text: Math.round(root.valueAt("scale", root.currentFrame)) + "%"; color: root.accent; font.pixelSize: 11; font.family: "monospace" }
+                            SpinBox {
+                                Layout.preferredWidth: 96
+                                from: 10
+                                to: 300
+                                editable: true
+                                value: Math.round(root.valueAt("scale", root.currentFrame))
+                                textFromValue: function(value) { return value + "%" }
+                                valueFromText: function(text) { return Number(text.replace("%", "")) }
+                                onValueModified: root.setCurrentProperty("scale", value)
+                            }
                         }
-                        Slider { Layout.fillWidth: true; from: 25; to: 200; value: root.valueAt("scale", root.currentFrame); onMoved: root.setCurrentProperty("scale", value) }
+                        Slider { Layout.fillWidth: true; from: 10; to: 300; value: root.valueAt("scale", root.currentFrame); onMoved: root.setCurrentProperty("scale", value) }
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Label { text: root.t("rotation"); color: root.brightText; font.pixelSize: 11 }
+                            Item { Layout.fillWidth: true }
+                            SpinBox {
+                                Layout.preferredWidth: 96
+                                from: -360
+                                to: 360
+                                editable: true
+                                value: Math.round(root.valueAt("rotation", root.currentFrame))
+                                textFromValue: function(value) { return value + "°" }
+                                valueFromText: function(text) { return Number(text.replace("°", "")) }
+                                onValueModified: root.setCurrentProperty("rotation", value)
+                            }
+                        }
+                        Slider { Layout.fillWidth: true; from: -360; to: 360; value: root.valueAt("rotation", root.currentFrame); onMoved: root.setCurrentProperty("rotation", value) }
                     }
 
                     ColumnLayout {
@@ -702,7 +801,16 @@ ApplicationWindow {
                             Layout.fillWidth: true
                             Label { text: root.t("opacity"); color: root.brightText; font.pixelSize: 11 }
                             Item { Layout.fillWidth: true }
-                            Label { text: Math.round(root.valueAt("opacity", root.currentFrame)) + "%"; color: root.accent; font.pixelSize: 11; font.family: "monospace" }
+                            SpinBox {
+                                Layout.preferredWidth: 96
+                                from: 0
+                                to: 100
+                                editable: true
+                                value: Math.round(root.valueAt("opacity", root.currentFrame))
+                                textFromValue: function(value) { return value + "%" }
+                                valueFromText: function(text) { return Number(text.replace("%", "")) }
+                                onValueModified: root.setCurrentProperty("opacity", value)
+                            }
                         }
                         Slider { Layout.fillWidth: true; from: 0; to: 100; value: root.valueAt("opacity", root.currentFrame); onMoved: root.setCurrentProperty("opacity", value) }
                     }
