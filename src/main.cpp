@@ -40,7 +40,13 @@ static int runExportSelfTest(int argc, char *argv[])
         return clip;
     };
 
-    const QVariantList clips = {makeClip(firstInfo), makeClip(secondInfo)};
+    const QVariantMap firstClip = makeClip(firstInfo);
+    const QVariantMap secondClip = makeClip(secondInfo);
+    const QVariantList clips = {firstClip, secondClip};
+    QVariantMap overlayAudio = secondClip;
+    overlayAudio.insert("start", 0.0);
+    overlayAudio.insert("volume", 25.0);
+    const QVariantList audioOverlays = {overlayAudio};
     QObject::connect(&media, &MediaController::exportFinished, &app,
         [&app, &media, outputPath](bool success, const QString &message) {
             if (!success) {
@@ -61,7 +67,7 @@ static int runExportSelfTest(int argc, char *argv[])
             app.exit(0);
         });
 
-    if (!media.exportTimeline(clips, {}, outputPath, 320, 180, 24))
+    if (!media.exportTimeline(clips, audioOverlays, outputPath, 320, 180, 24))
         return 1;
     return app.exec();
 }
