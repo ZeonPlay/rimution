@@ -27,8 +27,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            cmake ninja-build g++ curl file patchelf \
+            cmake ninja-build g++ curl file patchelf ffmpeg \
             qt6-base-dev qt6-declarative-dev qt6-declarative-dev-tools \
+            qt6-multimedia-dev qml6-module-qtmultimedia \
             qml6-module-qtqml \
             qml6-module-qtquick \
             qml6-module-qtquick-controls \
@@ -78,6 +79,8 @@ jobs:
           ./linuxdeploy-x86_64.AppImage \
             --appdir AppDir \
             --executable build-release/rimution \
+            --executable /usr/bin/ffmpeg \
+            --executable /usr/bin/ffprobe \
             --desktop-file packaging/rimution.desktop \
             --icon-file packaging/rimution.svg \
             --plugin qt \
@@ -105,6 +108,21 @@ jobs:
             echo "AppImage startup reported a QML or runtime dependency error." >&2
             exit 1
           fi
+
+      - name: Self-test bundled FFmpeg export
+        run: |
+          ffmpeg -hide_banner -loglevel error -y \
+            -f lavfi -i color=c=0xC6F36B:s=320x180:r=24:d=1 \
+            -f lavfi -i sine=frequency=440:sample_rate=48000:duration=1 \
+            -shortest -c:v libx264 -pix_fmt yuv420p -c:a aac /tmp/rimution-red.mp4
+          ffmpeg -hide_banner -loglevel error -y \
+            -f lavfi -i color=c=0x9B8CFF:s=320x180:r=24:d=1 \
+            -f lavfi -i sine=frequency=660:sample_rate=48000:duration=1 \
+            -shortest -c:v libx264 -pix_fmt yuv420p -c:a aac /tmp/rimution-purple.mp4
+          QT_QPA_PLATFORM=offscreen APPIMAGE_EXTRACT_AND_RUN=1 \
+            ./Rimution-x86_64.AppImage --self-test-export /tmp/rimution-appimage-test.mp4 \
+            /tmp/rimution-red.mp4 /tmp/rimution-purple.mp4
+          test -s /tmp/rimution-appimage-test.mp4
 
       - name: Upload Rimution AppImage artifact
         uses: actions/upload-artifact@v4
