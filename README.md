@@ -23,6 +23,8 @@ sudo pacman -Syu
 sudo pacman -S --needed base-devel cmake ninja gcc qt6-base qt6-declarative qt6-shadertools
 ```
 
+Rimution targets Qt 6.4 or newer. Qt 6.5-only APIs are avoided so the MVP can also build on the Ubuntu 24.04 GitHub Actions runner.
+
 Configure and compile:
 
 ```bash

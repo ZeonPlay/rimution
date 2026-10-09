@@ -6,8 +6,9 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Quick Qml QuickControls2)
-qt_standard_project_setup(REQUIRES 6.5)
+# Ubuntu 24.04's packaged Qt is 6.4.x. Keep the MVP compatible with it.
+find_package(Qt6 6.4 REQUIRED COMPONENTS Quick Qml QuickControls2)
+qt_standard_project_setup(REQUIRES 6.4)
 
 qt_add_executable(rimution
     src/main.cpp
