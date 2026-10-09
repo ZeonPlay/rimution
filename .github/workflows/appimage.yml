@@ -1,0 +1,116 @@
+name: Build Rimution AppImage
+
+on:
+  push:
+    branches:
+      - main
+      - "feat/**"
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  appimage:
+    name: Build and smoke-test AppImage
+    runs-on: ubuntu-24.04
+    env:
+      APPIMAGE_EXTRACT_AND_RUN: "1"
+      QML_SOURCES_PATHS: ${{ github.workspace }}/src/ui
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install Qt and packaging dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build g++ curl file patchelf \
+            qt6-base-dev qt6-declarative-dev qt6-declarative-dev-tools \
+            qml6-module-qtqml \
+            qml6-module-qtquick \
+            qml6-module-qtquick-controls \
+            qml6-module-qtquick-dialogs \
+            qml6-module-qtquick-layouts \
+            qml6-module-qtquick-window \
+            qml6-module-qtquick-templates \
+            qml6-module-qtqml-workerscript
+
+      - name: Configure Release build
+        run: cmake --preset release
+
+      - name: Compile Release build
+        run: cmake --build --preset release --parallel 2
+
+      - name: Smoke-test native Release build
+        shell: bash
+        run: |
+          set +e
+          QT_QPA_PLATFORM=offscreen timeout --signal=TERM 8s ./build-release/rimution > /tmp/rimution-native.log 2>&1
+          status=$?
+          set -e
+          cat /tmp/rimution-native.log
+          if [ "$status" -ne 124 ]; then
+            echo "Native Rimution did not remain running during startup test (exit: $status)." >&2
+            exit 1
+          fi
+          if grep -Eiq 'failed to load component|module .* is not installed|Type .* unavailable|error while loading shared libraries|Could not find the Qt platform plugin' /tmp/rimution-native.log; then
+            echo "Native startup reported a QML or runtime dependency error." >&2
+            exit 1
+          fi
+
+      - name: Download linuxdeploy tools
+        run: |
+          curl --fail --location --retry 3 --output linuxdeploy-x86_64.AppImage \
+            https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          curl --fail --location --retry 3 --output linuxdeploy-plugin-qt-x86_64.AppImage \
+            https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage linuxdeploy-plugin-qt-x86_64.AppImage
+          ./linuxdeploy-x86_64.AppImage --version
+
+      - name: Package AppImage
+        env:
+          OUTPUT: Rimution-x86_64.AppImage
+        run: |
+          ./linuxdeploy-x86_64.AppImage \
+            --appdir AppDir \
+            --executable build-release/rimution \
+            --desktop-file packaging/rimution.desktop \
+            --icon-file packaging/rimution.svg \
+            --plugin qt \
+            --output appimage
+
+          test -s Rimution-x86_64.AppImage
+          chmod +x Rimution-x86_64.AppImage
+          file Rimution-x86_64.AppImage
+          sha256sum Rimution-x86_64.AppImage | tee Rimution-x86_64.AppImage.sha256
+
+      - name: Smoke-test packaged AppImage
+        shell: bash
+        run: |
+          set +e
+          QT_QPA_PLATFORM=offscreen APPIMAGE_EXTRACT_AND_RUN=1 \
+            timeout --signal=TERM 10s ./Rimution-x86_64.AppImage > /tmp/rimution-appimage.log 2>&1
+          status=$?
+          set -e
+          cat /tmp/rimution-appimage.log
+          if [ "$status" -ne 124 ]; then
+            echo "Packaged Rimution did not remain running during startup test (exit: $status)." >&2
+            exit 1
+          fi
+          if grep -Eiq 'failed to load component|module .* is not installed|Type .* unavailable|error while loading shared libraries|Could not find the Qt platform plugin' /tmp/rimution-appimage.log; then
+            echo "AppImage startup reported a QML or runtime dependency error." >&2
+            exit 1
+          fi
+
+      - name: Upload Rimution AppImage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Rimution-AppImage-${{ github.sha }}
+          path: |
+            Rimution-x86_64.AppImage
+            Rimution-x86_64.AppImage.sha256
+          if-no-files-found: error
+          retention-days: 14
