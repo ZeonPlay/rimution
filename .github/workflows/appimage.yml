@@ -19,6 +19,8 @@ jobs:
     env:
       APPIMAGE_EXTRACT_AND_RUN: "1"
       QML_SOURCES_PATHS: ${{ github.workspace }}/src/ui
+      # Qt Multimedia loads its playback backend dynamically; make linuxdeploy copy it.
+      EXTRA_QT_MODULES: multimedia
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -70,6 +72,11 @@ jobs:
             https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
           chmod +x linuxdeploy-x86_64.AppImage linuxdeploy-plugin-qt-x86_64.AppImage
           ./linuxdeploy-x86_64.AppImage --version
+
+      - name: Verify Qt Multimedia backend availability
+        run: |
+          find /usr/lib/x86_64-linux-gnu/qt6/plugins/multimedia -maxdepth 1 -type f -printf '%f\n' | sort
+          test -n "$(find /usr/lib/x86_64-linux-gnu/qt6/plugins/multimedia -maxdepth 1 -type f -name '*mediaplugin.so' -print -quit)"
 
       - name: Package AppImage
         env:
