@@ -7,10 +7,12 @@
 - Minimal dark desktop workspace built with Qt Quick/QML.
 - Composition preview with a transformable vector-style object.
 - Play/pause playback and a frame-based playhead.
-- Keyframes for X/Y position, scale, and opacity, with linear interpolation.
-- Inspector controls that create/update a keyframe at the current frame.
+- Keyframes for X/Y position, scale, rotation, and opacity, with linear interpolation.
+- Direct numeric transform inputs plus sliders for precise property editing.
+- Drag the object directly in the composition canvas to set X/Y at the current frame.
+- Click a timeline keyframe diamond to jump to its frame.
 - Runtime language switch between Indonesian and English.
-- Save/open project files in the `.rim` JSON-based format.
+- Save/open project files in the `.rim` JSON-based format; older projects without rotation load with rotation set to zero.
 
 Not implemented yet: video/audio import, timeline editing for clips, effects stack, masking, undo/redo, audio playback, video export, GPU compositing, and AppImage packaging.
 
