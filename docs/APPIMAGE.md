@@ -1,14 +1,33 @@
-# AppImage packaging plan
+# Building and testing the Rimution AppImage
 
-AppImage packaging is intentionally a later milestone. Do not publish an AppImage until the app builds and passes the manual test plan on CachyOS.
+The AppImage pipeline is in `.github/workflows/appimage.yml`. It builds a Release configuration, packages Qt/QML dependencies with linuxdeploy and its Qt plugin, runs a headless startup smoke test against both the native executable and the final AppImage, then uploads the AppImage and SHA-256 checksum as a GitHub Actions artifact.
 
-The release pipeline should:
+## Trigger a build
 
-1. Build the application in a clean Linux environment.
-2. Stage the executable, desktop entry, icon, Qt platform plugin, Quick Controls plugin, and every required QML import into an `AppDir`.
-3. Use a maintained AppImage deployment tool/plugin compatible with the selected Qt 6 release.
-4. Inspect the final AppDir for missing runtime libraries and QML modules.
-5. Build the AppImage, make it executable, and test it outside the source/build tree on CachyOS.
-6. Confirm project save/open works in the packaged build.
+- Push a change to `main` or a branch matching `feat/**`.
+- Open **Actions → Build Rimution AppImage → Run workflow** to start one manually.
+- Wait for the job to finish, then open its run page and download the artifact named `Rimution-AppImage-<commit-sha>`.
 
-An AppImage built on a newer Linux baseline may not run on older distributions. Record the build environment and test against the intended baseline.
+The artifact currently has a 14-day retention. This pipeline does not create a public GitHub Release or claim a stable product release.
+
+## Test on CachyOS
+
+Download and extract the Actions artifact ZIP. In the extracted directory:
+
+```bash
+chmod +x Rimution-x86_64.AppImage
+sha256sum -c Rimution-x86_64.AppImage.sha256
+./Rimution-x86_64.AppImage
+```
+
+If launching fails, run it from a terminal and capture all output:
+
+```bash
+./Rimution-x86_64.AppImage 2>&1 | tee rimution-startup.log
+```
+
+Confirm the window opens, playback moves the playhead, property adjustments create/update keyframes, and project save/open round-trips a `.rim` file. CI's offscreen smoke test only verifies packaging and startup; it does not replace these interactive checks on CachyOS.
+
+## Known scope limits
+
+Rimution remains an early 2D motion-graphics prototype. Video/audio import, clip editing, effects, masking, undo/redo, and video export are not implemented yet. Packaging as an AppImage does not mean those features exist.

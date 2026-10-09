@@ -5,5 +5,5 @@ Comment=2D motion graphics editor prototype
 Exec=rimution
 Icon=rimution
 Terminal=false
-Categories=Graphics;AudioVideo;Video;
+Categories=AudioVideo;Graphics;Video;
 StartupNotify=true
