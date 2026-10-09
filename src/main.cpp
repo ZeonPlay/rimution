@@ -4,6 +4,7 @@
 #include <QUrl>
 #include <QtQml/qqml.h>
 #include <QDebug>
+#include <QByteArray>
 
 #include "app/ProjectController.h"
 #include "app/MediaController.h"
@@ -76,6 +77,12 @@ int main(int argc, char *argv[])
 {
     if (argc > 1 && QString::fromLocal8Bit(argv[1]) == QStringLiteral("--self-test-export"))
         return runExportSelfTest(argc, argv);
+
+#if defined(Q_OS_LINUX)
+    // Ubuntu's Qt 6.4 package defaults to GStreamer. Use the bundled FFmpeg backend
+    // so playback does not depend on system GStreamer plugins on the target machine.
+    qputenv("QT_MEDIA_BACKEND", QByteArrayLiteral("ffmpeg"));
+#endif
 
     QGuiApplication app(argc, argv);
     QCoreApplication::setApplicationName("Rimution");
