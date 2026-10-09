@@ -18,6 +18,8 @@ jobs:
           sudo apt-get install -y \
             cmake ninja-build g++ \
             qt6-base-dev qt6-declarative-dev qt6-declarative-dev-tools \
+            qml6-module-qtqml \
+            qml6-module-qtquick \
             qml6-module-qtquick-controls \
             qml6-module-qtquick-dialogs \
             qml6-module-qtquick-layouts \
@@ -30,3 +32,22 @@ jobs:
 
       - name: Build
         run: cmake --build --preset dev --parallel 2
+
+      - name: Smoke test QML startup
+        shell: bash
+        run: |
+          set +e
+          QT_QPA_PLATFORM=offscreen timeout --signal=TERM 8s ./build/rimution > /tmp/rimution-smoke.log 2>&1
+          status=$?
+          set -e
+          cat /tmp/rimution-smoke.log
+
+          if [ "$status" -ne 124 ]; then
+            echo "Rimution did not stay running during the startup smoke test (exit: $status)." >&2
+            exit 1
+          fi
+
+          if grep -Eiq 'failed to load component|module .* is not installed|Type .* unavailable|error while loading shared libraries' /tmp/rimution-smoke.log; then
+            echo "QML or runtime dependency errors detected." >&2
+            exit 1
+          fi

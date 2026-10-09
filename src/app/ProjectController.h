@@ -4,7 +4,7 @@
 #include <QVariantMap>
 #include <QString>
 
-class ProjectController final : public QObject
+class ProjectController : public QObject
 {
     Q_OBJECT
 
