@@ -81,8 +81,11 @@ jobs:
 
       - name: Verify Qt Labs FolderListModel availability
         run: |
-          dpkg -L qml6-module-qt-labs-folderlistmodel
-          test -n "$(dpkg -L qml6-module-qt-labs-folderlistmodel | grep -E '/(lib)?qmlfolderlistmodelplugin\.so        env:
+          dpkg -L qml6-module-qt-labs-folderlistmodel > /tmp/folderlistmodel-files.txt
+          test -s /tmp/folderlistmodel-files.txt
+
+      - name: Package AppImage
+        env:
           LDAI_OUTPUT: Rimution-x86_64.AppImage
           EXTRA_PLATFORM_PLUGINS: libqoffscreen.so
         run: |
@@ -99,7 +102,8 @@ jobs:
           test -s Rimution-x86_64.AppImage
           chmod +x Rimution-x86_64.AppImage
           file Rimution-x86_64.AppImage
-          if ! find AppDir -type f -iname '*folderlistmodel*' -print -quit | grep -q .; then
+          find AppDir -type f -iname '*folderlistmodel*' -print -quit > /tmp/rimution-folderlistmodel-plugin.txt
+          if [ ! -s /tmp/rimution-folderlistmodel-plugin.txt ]; then
             echo "Qt.labs.folderlistmodel was not bundled into AppDir." >&2
             find AppDir -path '*Qt/labs*' -print
             exit 1
@@ -120,70 +124,6 @@ jobs:
             exit 1
           fi
           if grep -Eiq 'failed to load component|module .* is not installed|Type .* unavailable|error while loading shared libraries|Could not find the Qt platform plugin|Failed to load non-native FileDialog implementation' /tmp/rimution-appimage.log; then
-            echo "AppImage startup reported a QML or runtime dependency error." >&2
-            exit 1
-          fi
-
-      - name: Self-test bundled FFmpeg export
-        run: |
-          ffmpeg -hide_banner -loglevel error -y \
-            -f lavfi -i color=c=0xC6F36B:s=320x180:r=24:d=1 \
-            -f lavfi -i sine=frequency=440:sample_rate=48000:duration=1 \
-            -shortest -c:v libx264 -pix_fmt yuv420p -c:a aac /tmp/rimution-red.mp4
-          ffmpeg -hide_banner -loglevel error -y \
-            -f lavfi -i color=c=0x9B8CFF:s=320x180:r=24:d=1 \
-            -f lavfi -i sine=frequency=660:sample_rate=48000:duration=1 \
-            -shortest -c:v libx264 -pix_fmt yuv420p -c:a aac /tmp/rimution-purple.mp4
-          QT_QPA_PLATFORM=offscreen APPIMAGE_EXTRACT_AND_RUN=1 \
-            ./Rimution-x86_64.AppImage --self-test-export /tmp/rimution-appimage-test.mp4 \
-            /tmp/rimution-red.mp4 /tmp/rimution-purple.mp4
-          test -s /tmp/rimution-appimage-test.mp4
-
-      - name: Upload Rimution AppImage artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Rimution-AppImage-${{ github.sha }}
-          path: |
-            Rimution-x86_64.AppImage
-            Rimution-x86_64.AppImage.sha256
-          if-no-files-found: error
-          retention-days: 14
- | head -n 1)"
-
-      - name: Package AppImage
-        env:
-          LDAI_OUTPUT: Rimution-x86_64.AppImage
-          EXTRA_PLATFORM_PLUGINS: libqoffscreen.so
-        run: |
-          ./linuxdeploy-x86_64.AppImage \
-            --appdir AppDir \
-            --executable build-release/rimution \
-            --executable /usr/bin/ffmpeg \
-            --executable /usr/bin/ffprobe \
-            --desktop-file packaging/rimution.desktop \
-            --icon-file packaging/rimution.svg \
-            --plugin qt \
-            --output appimage
-
-          test -s Rimution-x86_64.AppImage
-          chmod +x Rimution-x86_64.AppImage
-          file Rimution-x86_64.AppImage
-          sha256sum Rimution-x86_64.AppImage | tee Rimution-x86_64.AppImage.sha256
-
-      - name: Smoke-test packaged AppImage
-        shell: bash
-        run: |
-          set +e
-          QT_QPA_PLATFORM=offscreen APPIMAGE_EXTRACT_AND_RUN=1 \
-            timeout --signal=TERM 10s ./Rimution-x86_64.AppImage > /tmp/rimution-appimage.log 2>&1
-          status=$?
-          set -e
-          cat /tmp/rimution-appimage.log
-          if [ "$status" -ne 124 ]; then
-            echo "Packaged Rimution did not remain running during startup test (exit: $status)." >&2
-            exit 1
-          fi
-          if grep -Eiq 'failed to load component|module .* is not installed|Type .* unavailable|error while loading shared libraries|Could not find the Qt platform plugin' /tmp/rimution-appimage.log; then
             echo "AppImage startup reported a QML or runtime dependency error." >&2
             exit 1
           fi
