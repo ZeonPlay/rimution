@@ -32,6 +32,7 @@ jobs:
             cmake ninja-build g++ curl file patchelf ffmpeg \
             qt6-base-dev qt6-declarative-dev qt6-declarative-dev-tools \
             qt6-multimedia-dev qml6-module-qtmultimedia \
+            qml6-module-qt-labs-folderlistmodel \
             qml6-module-qtqml \
             qml6-module-qtquick \
             qml6-module-qtquick-controls \
@@ -78,6 +79,11 @@ jobs:
           find /usr/lib/x86_64-linux-gnu/qt6/plugins/multimedia -maxdepth 1 -type f -printf '%f\n' | sort
           test -n "$(find /usr/lib/x86_64-linux-gnu/qt6/plugins/multimedia -maxdepth 1 -type f -name '*mediaplugin.so' -print -quit)"
 
+      - name: Verify Qt Labs FolderListModel availability
+        run: |
+          dpkg -L qml6-module-qt-labs-folderlistmodel > /tmp/folderlistmodel-files.txt
+          test -s /tmp/folderlistmodel-files.txt
+
       - name: Package AppImage
         env:
           LDAI_OUTPUT: Rimution-x86_64.AppImage
@@ -96,6 +102,12 @@ jobs:
           test -s Rimution-x86_64.AppImage
           chmod +x Rimution-x86_64.AppImage
           file Rimution-x86_64.AppImage
+          find AppDir -type f -iname '*folderlistmodel*' -print -quit > /tmp/rimution-folderlistmodel-plugin.txt
+          if [ ! -s /tmp/rimution-folderlistmodel-plugin.txt ]; then
+            echo "Qt.labs.folderlistmodel was not bundled into AppDir." >&2
+            find AppDir -path '*Qt/labs*' -print
+            exit 1
+          fi
           sha256sum Rimution-x86_64.AppImage | tee Rimution-x86_64.AppImage.sha256
 
       - name: Smoke-test packaged AppImage
@@ -111,7 +123,7 @@ jobs:
             echo "Packaged Rimution did not remain running during startup test (exit: $status)." >&2
             exit 1
           fi
-          if grep -Eiq 'failed to load component|module .* is not installed|Type .* unavailable|error while loading shared libraries|Could not find the Qt platform plugin' /tmp/rimution-appimage.log; then
+          if grep -Eiq 'failed to load component|module .* is not installed|Type .* unavailable|error while loading shared libraries|Could not find the Qt platform plugin|Failed to load non-native FileDialog implementation' /tmp/rimution-appimage.log; then
             echo "AppImage startup reported a QML or runtime dependency error." >&2
             exit 1
           fi
