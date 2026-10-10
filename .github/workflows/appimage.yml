@@ -19,6 +19,8 @@ jobs:
     env:
       APPIMAGE_EXTRACT_AND_RUN: "1"
       QML_SOURCES_PATHS: ${{ github.workspace }}/src/ui
+      # Qt Multimedia loads its playback backend dynamically; make linuxdeploy copy it.
+      EXTRA_QT_MODULES: multimedia
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -27,8 +29,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            cmake ninja-build g++ curl file patchelf \
+            cmake ninja-build g++ curl file patchelf ffmpeg \
             qt6-base-dev qt6-declarative-dev qt6-declarative-dev-tools \
+            qt6-multimedia-dev qml6-module-qtmultimedia \
             qml6-module-qtqml \
             qml6-module-qtquick \
             qml6-module-qtquick-controls \
@@ -70,6 +73,11 @@ jobs:
           chmod +x linuxdeploy-x86_64.AppImage linuxdeploy-plugin-qt-x86_64.AppImage
           ./linuxdeploy-x86_64.AppImage --version
 
+      - name: Verify Qt Multimedia backend availability
+        run: |
+          find /usr/lib/x86_64-linux-gnu/qt6/plugins/multimedia -maxdepth 1 -type f -printf '%f\n' | sort
+          test -n "$(find /usr/lib/x86_64-linux-gnu/qt6/plugins/multimedia -maxdepth 1 -type f -name '*mediaplugin.so' -print -quit)"
+
       - name: Package AppImage
         env:
           LDAI_OUTPUT: Rimution-x86_64.AppImage
@@ -78,6 +86,8 @@ jobs:
           ./linuxdeploy-x86_64.AppImage \
             --appdir AppDir \
             --executable build-release/rimution \
+            --executable /usr/bin/ffmpeg \
+            --executable /usr/bin/ffprobe \
             --desktop-file packaging/rimution.desktop \
             --icon-file packaging/rimution.svg \
             --plugin qt \
@@ -105,6 +115,21 @@ jobs:
             echo "AppImage startup reported a QML or runtime dependency error." >&2
             exit 1
           fi
+
+      - name: Self-test bundled FFmpeg export
+        run: |
+          ffmpeg -hide_banner -loglevel error -y \
+            -f lavfi -i color=c=0xC6F36B:s=320x180:r=24:d=1 \
+            -f lavfi -i sine=frequency=440:sample_rate=48000:duration=1 \
+            -shortest -c:v libx264 -pix_fmt yuv420p -c:a aac /tmp/rimution-red.mp4
+          ffmpeg -hide_banner -loglevel error -y \
+            -f lavfi -i color=c=0x9B8CFF:s=320x180:r=24:d=1 \
+            -f lavfi -i sine=frequency=660:sample_rate=48000:duration=1 \
+            -shortest -c:v libx264 -pix_fmt yuv420p -c:a aac /tmp/rimution-purple.mp4
+          QT_QPA_PLATFORM=offscreen APPIMAGE_EXTRACT_AND_RUN=1 \
+            ./Rimution-x86_64.AppImage --self-test-export /tmp/rimution-appimage-test.mp4 \
+            /tmp/rimution-red.mp4 /tmp/rimution-purple.mp4
+          test -s /tmp/rimution-appimage-test.mp4
 
       - name: Upload Rimution AppImage artifact
         uses: actions/upload-artifact@v4

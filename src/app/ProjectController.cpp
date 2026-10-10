@@ -26,7 +26,7 @@ bool ProjectController::saveProject(const QString &filePath, const QVariantMap &
 
     QVariantMap data = project;
     data.insert(QStringLiteral("format"), QStringLiteral("rimution-project"));
-    data.insert(QStringLiteral("formatVersion"), 1);
+    data.insert(QStringLiteral("formatVersion"), 2);
 
     const QJsonDocument document = QJsonDocument::fromVariant(data);
     const QByteArray bytes = document.toJson(QJsonDocument::Indented);
@@ -61,8 +61,9 @@ QVariantMap ProjectController::loadProject(const QString &filePath)
     }
 
     QVariantMap project = document.object().toVariantMap();
+    const int formatVersion = project.value(QStringLiteral("formatVersion")).toInt();
     if (project.value(QStringLiteral("format")).toString() != QStringLiteral("rimution-project") ||
-        project.value(QStringLiteral("formatVersion")).toInt() != 1) {
+        (formatVersion != 1 && formatVersion != 2)) {
         emit errorOccurred(QStringLiteral("This file is not a supported Rimution project."));
         return {};
     }

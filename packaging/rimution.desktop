@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=Rimution
-Comment=2D motion graphics editor prototype
+Comment=Local video editing and motion graphics studio
 Exec=rimution
 Icon=rimution
 Terminal=false

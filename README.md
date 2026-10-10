@@ -4,17 +4,16 @@
 
 ## Current prototype scope
 
-- Minimal dark desktop workspace built with Qt Quick/QML.
-- Composition preview with a transformable vector-style object.
-- Play/pause playback and a frame-based playhead.
-- Keyframes for X/Y position, scale, rotation, and opacity, with linear interpolation.
-- Direct numeric transform inputs plus sliders for precise property editing.
-- Drag the object directly in the composition canvas to set X/Y at the current frame.
-- Click a timeline keyframe diamond to jump to its frame.
-- Runtime language switch between Indonesian and English.
-- Save/open project files in the `.rim` JSON-based format; older projects without rotation load with rotation set to zero.
+- Local media bin with video, audio, and still-image imports.
+- Video preview with playback, seeking, and embedded audio.
+- A sequence video/image track (V1) and a separate audio overlay track (A1).
+- Non-destructive source In/Out trimming, clip splitting at the playhead, clip reordering, and deletion.
+- Audio clip placement, trim ranges, and volume control.
+- MP4 export with H.264 video, AAC audio, optional layered audio, and progress reporting using FFmpeg.
+- A motion-overlay layer with keyframed position, scale, rotation, and opacity.
+- Project save/open with legacy version-1 compatibility, undo/redo snapshots, and Indonesian/English UI.
 
-Not implemented yet: video/audio import, timeline editing for clips, effects stack, masking, undo/redo, audio playback, video export, and GPU compositing.
+This is an early editor. It does not yet have full multi-track video compositing, transitions/effects, a waveform display, captions, proxy media, or a graph editor. The CI tests cover building, application startup, and a two-clip MP4 export; manual desktop use on CachyOS remains necessary.
 
 ## Build on CachyOS / Arch Linux
 
